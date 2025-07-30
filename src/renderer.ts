@@ -188,7 +188,16 @@ async function loadUsageData() {
         if (session && session.name) {
           const sessionEl = document.createElement('div');
           sessionEl.className = 'session-item';
-          const displayName = session.name.replace('Unknown Session', 'Session');
+          
+          // Format session name for display - capitalize first letter
+          let displayName = session.name;
+          if (displayName === 'Unknown Session') {
+            displayName = 'session';
+          }
+          
+          // Capitalize first letter for better display
+          displayName = displayName.charAt(0).toUpperCase() + displayName.slice(1);
+          
           sessionEl.innerHTML = `
             <span class="session-name" title="${displayName}">${displayName}</span>
             <span class="session-cost">${formatCost(session.cost || 0)}</span>

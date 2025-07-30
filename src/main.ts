@@ -5,6 +5,20 @@ import { promisify } from 'util';
 
 const execAsync = promisify(exec);
 
+// Helper function to extract session type from sessionId
+function extractSessionTypeFromId(sessionId: string): string {
+  if (!sessionId) return 'session';
+  
+  // Match pattern: -Users-${whoami}-workspace-${sessionType}-...
+  const match = sessionId.match(/-workspace-([^-]+)/);
+  if (match && match[1]) {
+    return match[1];
+  }
+  
+  // Fallback to 'session' if pattern doesn't match
+  return 'session';
+}
+
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let isQuitting = false;
@@ -357,8 +371,18 @@ ipcMain.handle('get-usage-data', async () => {
     
     const recentSessions = sessionsArray.slice(0, 5).map((s: any) => {
       console.log('Session item:', s);
+      
+      // Extract session name from sessionId if available, otherwise use fallback names
+      let sessionName = s.sessionName || s.session || s.name || 'Unknown Session';
+      
+      // If we have a sessionId, try to extract the session type from it
+      if (s.sessionId) {
+        const extractedType = extractSessionTypeFromId(s.sessionId);
+        sessionName = extractedType;
+      }
+      
       return {
-        name: s.sessionName || s.session || s.name || 'Unknown Session',
+        name: sessionName,
         tokens: s.totalTokens || 0,
         cost: s.totalCost || s.costUSD || s.totalCostUSD || 0,
         lastActivity: s.lastActivity || s.lastUpdated || new Date().toISOString()
