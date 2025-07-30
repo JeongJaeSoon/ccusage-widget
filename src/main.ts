@@ -5,14 +5,24 @@ import { promisify } from 'util';
 
 const execAsync = promisify(exec);
 
-// Helper function to extract session type from sessionId
-function extractSessionTypeFromId(sessionId: string): string {
+// Helper function to extract session name from sessionId
+function extractSessionNameFromId(sessionId: string): string {
   if (!sessionId) return 'session';
   
-  // Match pattern: -Users-${whoami}-workspace-${sessionType}-...
-  const match = sessionId.match(/-workspace-([^-]+)/);
+  // Match pattern: -Users-${whoami}-workspace-${sessionType}-${sessionName}
+  // Extract the session name (the part after the second dash after workspace)
+  const match = sessionId.match(/-workspace-[^-]+-([^-]+)/);
   if (match && match[1]) {
     return match[1];
+  }
+  
+  // If that doesn't work, try to get anything after the last dash
+  const parts = sessionId.split('-');
+  if (parts.length > 0) {
+    const lastPart = parts[parts.length - 1];
+    if (lastPart && lastPart !== 'workspace') {
+      return lastPart;
+    }
   }
   
   // Fallback to 'session' if pattern doesn't match
@@ -98,9 +108,6 @@ function createWindow() {
     ? path.join(__dirname, '..', 'src', 'index.html')
     : path.join(__dirname, 'index.html');
   
-  console.log('Loading index.html from:', indexPath);
-  console.log('__dirname:', __dirname);
-  console.log('isDev:', isDev);
   
   mainWindow.loadFile(indexPath);
 
@@ -263,7 +270,6 @@ app.on('before-quit', () => {
 ipcMain.handle('get-usage-data', async () => {
   try {
     // Execute ccusage commands to get data
-    console.log('Executing ccusage commands...');
     // Try different ways to execute ccusage
     let dailyResult, monthlyResult, sessionResult, blocksResult;
     
@@ -276,7 +282,7 @@ ipcMain.handle('get-usage-data', async () => {
         execAsync('npx ccusage blocks --json')
       ]);
     } catch (error) {
-      console.error('Failed with npx, trying direct ccusage:', error);
+      // Try with direct ccusage command
       // Try with direct ccusage command
       try {
         [dailyResult, monthlyResult, sessionResult, blocksResult] = await Promise.all([
@@ -286,7 +292,7 @@ ipcMain.handle('get-usage-data', async () => {
           execAsync('ccusage blocks --json')
         ]);
       } catch (error2) {
-        console.error('Failed with direct ccusage, trying node_modules:', error2);
+        // Try with local node_modules
         // Try with local node_modules
         const ccusagePath = path.join(__dirname, '..', 'node_modules', '.bin', 'ccusage');
         [dailyResult, monthlyResult, sessionResult, blocksResult] = await Promise.all([
@@ -298,10 +304,6 @@ ipcMain.handle('get-usage-data', async () => {
       }
     }
     
-    console.log('Daily result:', dailyResult.stdout);
-    console.log('Monthly result:', monthlyResult.stdout);
-    console.log('Session result:', sessionResult.stdout);
-    console.log('Blocks result:', blocksResult.stdout);
 
     let dailyData, monthlyData, sessionData, blocksData;
     
@@ -311,10 +313,6 @@ ipcMain.handle('get-usage-data', async () => {
       const sessionParsed = JSON.parse(sessionResult.stdout || '{}');
       const blocksParsed = JSON.parse(blocksResult.stdout || '{}');
       
-      console.log('Parsed daily data structure:', Object.keys(dailyParsed));
-      console.log('Parsed monthly data structure:', Object.keys(monthlyParsed));
-      console.log('Parsed session data structure:', Object.keys(sessionParsed));
-      console.log('Parsed blocks data structure:', Object.keys(blocksParsed));
       
       // Adjust to actual ccusage output structure
       dailyData = dailyParsed;
@@ -341,8 +339,6 @@ ipcMain.handle('get-usage-data', async () => {
     const todayDate = `${year}-${month}-${day}`;
     
     const dailyArray = dailyData.daily || dailyData.data || [];
-    console.log('Looking for today (local):', todayDate);
-    console.log('Available dates:', dailyArray.map((d: any) => d.date));
     
     // Find today's data or get the most recent day
     let today = dailyArray.find((d: any) => d.date === todayDate);
@@ -350,35 +346,29 @@ ipcMain.handle('get-usage-data', async () => {
     // If today's data is not found, get the most recent (last item in array)
     if (!today && dailyArray.length > 0) {
       today = dailyArray[dailyArray.length - 1];
-      console.log('Today not found, using most recent:', today.date);
     }
     
-    console.log('Today data:', today);
     
     // Get this month's usage
     const thisMonthDate = new Date().toISOString().substring(0, 7); // YYYY-MM format
     const monthlyArray = monthlyData.monthly || monthlyData.data || [];
     const thisMonth = monthlyArray.find((m: any) => m.month === thisMonthDate) || monthlyArray[0] || null;
-    console.log('This month data:', thisMonth);
     
     // Get total from summary
     const totalDaily = dailyData.totals || dailyData.summary || {};
-    console.log('Total daily:', totalDaily);
 
     // Get recent sessions
     const sessionsArray = sessionData.sessions || sessionData.data || [];
-    console.log('Sessions array:', sessionsArray);
     
     const recentSessions = sessionsArray.slice(0, 5).map((s: any) => {
-      console.log('Session item:', s);
       
       // Extract session name from sessionId if available, otherwise use fallback names
       let sessionName = s.sessionName || s.session || s.name || 'Unknown Session';
       
-      // If we have a sessionId, try to extract the session type from it
+      // If we have a sessionId, try to extract the session name from it
       if (s.sessionId) {
-        const extractedType = extractSessionTypeFromId(s.sessionId);
-        sessionName = extractedType;
+        const extractedName = extractSessionNameFromId(s.sessionId);
+        sessionName = extractedName;
       }
       
       return {
@@ -391,13 +381,11 @@ ipcMain.handle('get-usage-data', async () => {
 
     // Get blocks data
     const blocksArray = Array.isArray(blocksData.blocks) ? blocksData.blocks : [];
-    console.log('Blocks array:', blocksArray);
     
     // Find current active block
     const currentBlock = blocksArray.find((block: any) => 
       block && typeof block === 'object' && block.isActive === true
     );
-    console.log('Current active block:', currentBlock);
     const result = {
       today: today ? {
         date: today.date,
@@ -424,7 +412,6 @@ ipcMain.handle('get-usage-data', async () => {
       lastUpdated: new Date().toISOString()
     };
     
-    console.log('Returning result:', result);
     return result;
   } catch (error) {
     console.error('Error loading usage data:', error);
