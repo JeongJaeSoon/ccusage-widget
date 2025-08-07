@@ -276,21 +276,6 @@ body {
   transform: scale(1.2);
 }
 
-.resize-handle {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 8px;
-  background: transparent;
-  cursor: ns-resize;
-  -webkit-app-region: no-drag;
-}
-
-.resize-handle:hover {
-  background: rgba(74, 158, 255, 0.3);
-}
-
 /* Scrollbar styles */
 ::-webkit-scrollbar {
   width: 6px;
