@@ -116,15 +116,17 @@ const formatDateLabel = (dateString: string): string => {
   }
 };
 
-async function loadUsageData() {
+async function loadUsageData(showLoading = true) {
   const loadingEl = document.getElementById('loading')!;
   const errorEl = document.getElementById('error')!;
   const statsEl = document.getElementById('usage-stats')!;
   
   try {
-    loadingEl.style.display = 'flex';
-    errorEl.style.display = 'none';
-    statsEl.style.display = 'none';
+    if (showLoading) {
+      loadingEl.style.display = 'flex';
+      errorEl.style.display = 'none';
+      statsEl.style.display = 'none';
+    }
     
     const data = await window.ccusageAPI.getUsageData();
     
@@ -242,7 +244,7 @@ document.addEventListener('DOMContentLoaded', () => {
   loadUsageData();
   
   // Refresh button
-  document.getElementById('refresh-btn')!.addEventListener('click', loadUsageData);
+  document.getElementById('refresh-btn')!.addEventListener('click', () => loadUsageData());
   
   // Minimize button
   document.getElementById('minimize-btn')!.addEventListener('click', () => {
@@ -262,5 +264,5 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   
   // Auto-refresh every minute
-  setInterval(loadUsageData, 60000);
+  setInterval(() => loadUsageData(false), 60000);
 });
