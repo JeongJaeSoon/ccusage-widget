@@ -3,7 +3,13 @@ import * as path from 'path';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 
+const packageJson = require('../package.json');
 const execAsync = promisify(exec);
+
+// Set app name before app is ready (important for macOS)
+// Use productName from package.json if available, otherwise use name
+const appName = packageJson.build?.productName || packageJson.productName || packageJson.name || 'CCUsage Widget';
+app.setName(appName);
 
 // Helper function to extract session name from sessionId
 function extractSessionNameFromId(sessionId: string): string {
@@ -246,6 +252,17 @@ function updatePosition(position: WidgetConfig['position']) {
 }
 
 app.whenReady().then(() => {
+
+  // Set About panel options for macOS
+  app.setAboutPanelOptions({
+    applicationName: appName,
+    applicationVersion: packageJson.version,
+    version: packageJson.version,
+    copyright: 'Copyright © 2025 JeongJaeSoon',
+    authors: packageJson.author ? [packageJson.author.name || packageJson.author] : ['JeongJaeSoon'],
+    website: packageJson.homepage || 'https://github.com/JeongJaeSoon/ccusage-widget'
+  });
+
   createWindow();
   createTray();
 
