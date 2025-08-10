@@ -2,8 +2,8 @@ import { app, BrowserWindow, ipcMain, screen, Menu, Tray, nativeImage } from 'el
 import * as path from 'path';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import packageJson from '../package.json';
 
-const packageJson = require('../package.json');
 const execAsync = promisify(exec);
 
 // Set app name before app is ready (important for macOS)
