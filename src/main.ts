@@ -8,7 +8,7 @@ const execAsync = promisify(exec);
 
 // Set app name before app is ready (important for macOS)
 // Use productName from package.json if available, otherwise use name
-const appName = packageJson.build?.productName || packageJson.productName || packageJson.name || 'CCUsage Widget';
+const appName = packageJson.build?.productName || packageJson.name || 'CCUsage Widget';
 app.setName(appName);
 
 // Helper function to extract session name from sessionId
@@ -259,7 +259,9 @@ app.whenReady().then(() => {
     applicationVersion: packageJson.version,
     version: packageJson.version,
     copyright: 'Copyright © 2025 JeongJaeSoon',
-    authors: packageJson.author ? [packageJson.author.name || packageJson.author] : ['JeongJaeSoon'],
+    authors: packageJson.author ? 
+      [typeof packageJson.author === 'string' ? packageJson.author : packageJson.author.name || 'JeongJaeSoon'] : 
+      ['JeongJaeSoon'],
     website: packageJson.homepage || 'https://github.com/JeongJaeSoon/ccusage-widget'
   });
 
