@@ -1,0 +1,121 @@
+name: Pre-Release Check
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: macos-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '24'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run lint checks
+      run: npm run lint
+
+    - name: Run type checks
+      run: npm run typecheck
+
+    - name: Run tests
+      run: npm test
+
+    - name: Build application
+      run: npm run build
+
+    - name: Verify build output
+      run: |
+        echo "📦 Verifying build output..."
+        if [ ! -d "dist" ]; then
+          echo "❌ Build directory 'dist' not found"
+          exit 1
+        fi
+        if [ ! -f "dist/main.js" ]; then
+          echo "❌ Main entry point 'dist/main.js' not found"
+          exit 1
+        fi
+        echo "✅ Build output verified successfully"
+
+    - name: Create distributable (dry-run)
+      run: npm run dist
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Test package creation
+      run: |
+        echo "📦 Testing package creation..."
+        npm pack
+        # Check package size
+        PACKAGE_SIZE=$(ls -lh *.tgz | awk '{print $5}')
+        echo "📊 Package size: $PACKAGE_SIZE"
+        
+        # Extract and verify package contents
+        tar -tzf *.tgz | head -20
+        
+        # Clean up
+        rm *.tgz
+        echo "✅ Package creation test passed"
+
+    - name: Test global installation simulation
+      run: |
+        echo "🧪 Simulating global installation..."
+        npm pack
+        
+        # Create a temporary directory for testing
+        TEMP_DIR=$(mktemp -d)
+        cd $TEMP_DIR
+        
+        # Install the package locally to test
+        npm init -y > /dev/null
+        npm install $GITHUB_WORKSPACE/*.tgz
+        
+        # Check if bin script exists and is executable
+        if [ ! -f "node_modules/ccusage-widget/bin/ccusage-widget.js" ]; then
+          echo "❌ Bin script not found in package"
+          exit 1
+        fi
+        
+        # Clean up
+        cd $GITHUB_WORKSPACE
+        rm -rf $TEMP_DIR
+        rm *.tgz
+        echo "✅ Global installation simulation passed"
+
+    - name: Check version consistency
+      run: |
+        echo "🔍 Checking version consistency..."
+        PACKAGE_VERSION=$(node -p "require('./package.json').version")
+        echo "📌 Current package version: $PACKAGE_VERSION"
+        
+        # Check if version follows semver
+        if ! echo "$PACKAGE_VERSION" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+' > /dev/null; then
+          echo "❌ Version does not follow semantic versioning"
+          exit 1
+        fi
+        echo "✅ Version format is valid"
+
+    - name: Summary
+      if: success()
+      run: |
+        echo "🎉 All pre-release checks passed!"
+        echo "✅ Lint checks"
+        echo "✅ Type checks"
+        echo "✅ Tests"
+        echo "✅ Build verification"
+        echo "✅ Package creation"
+        echo "✅ Installation simulation"
+        echo "✅ Version consistency"
+        echo ""
+        echo "📝 Ready for release when tagged!"

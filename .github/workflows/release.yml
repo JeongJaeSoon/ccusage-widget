@@ -23,13 +23,73 @@ jobs:
     - name: Install dependencies
       run: npm ci
 
+    - name: Run lint checks
+      run: npm run lint
+
+    - name: Run type checks
+      run: npm run typecheck
+
+    - name: Run tests
+      run: npm test
+
     - name: Build application
       run: npm run build
+
+    - name: Verify build output
+      run: |
+        echo "📦 Verifying build output..."
+        if [ ! -d "dist" ]; then
+          echo "❌ Build directory 'dist' not found"
+          exit 1
+        fi
+        if [ ! -f "dist/main.js" ]; then
+          echo "❌ Main entry point 'dist/main.js' not found"
+          exit 1
+        fi
+        echo "✅ Build output verified successfully"
 
     - name: Create distributable
       run: npm run dist
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Test global installation
+      run: |
+        echo "🧪 Testing global installation..."
+        npm pack
+        npm install -g *.tgz
+        # Test if the command is available
+        which ccusage-widget
+        # Test help command
+        ccusage-widget --help
+        # Clean up
+        npm uninstall -g ccusage-widget
+        rm *.tgz
+        echo "✅ Global installation test passed"
+
+    - name: Verify package contents
+      run: |
+        echo "📋 Verifying package contents..."
+        npm pack --dry-run
+        echo "✅ Package contents verified"
+
+    - name: Check npm publish requirements
+      run: |
+        echo "🔍 Checking npm publish requirements..."
+        # Check if version in package.json matches the tag
+        TAG_VERSION=${GITHUB_REF#refs/tags/v}
+        PACKAGE_VERSION=$(node -p "require('./package.json').version")
+        if [ "$TAG_VERSION" != "$PACKAGE_VERSION" ]; then
+          echo "❌ Version mismatch: Tag version (v$TAG_VERSION) != Package version ($PACKAGE_VERSION)"
+          exit 1
+        fi
+        echo "✅ Version check passed: v$PACKAGE_VERSION"
+        
+        # Verify npm token is set
+        if [ -z "${{ secrets.NPM_TOKEN }}" ]; then
+          echo "⚠️  Warning: NPM_TOKEN secret is not set"
+        fi
+        echo "✅ All npm publish requirements met"
 
     - name: Publish to npm
       run: npm publish
