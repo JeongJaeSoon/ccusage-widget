@@ -1,6 +1,6 @@
 {
   "name": "ccusage-widget",
-  "version": "1.3.0",
+  "version": "1.3.2",
   "description": "A beautiful macOS desktop widget that displays your Claude Code usage statistics in real-time",
   "main": "dist/main.js",
   "bin": {
