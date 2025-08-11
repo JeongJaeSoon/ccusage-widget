@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., v1.3.2)'
+        required: true
+        type: string
 
 jobs:
   release:
@@ -26,23 +32,10 @@ jobs:
         cache: 'npm'
         registry-url: 'https://registry.npmjs.org'
 
-    - name: Update package.json version and commit to main
+    - name: Update package.json version
       run: |
-        # Configure git
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        
-        # Update version
-        npm version ${{ github.ref_name }} --no-git-tag-version --allow-same-version
-        
-        # Commit and push to main if there are changes
-        if git diff --quiet; then
-          echo "No version change needed"
-        else
-          git add package.json package-lock.json
-          git commit -m "chore: bump version to ${{ github.ref_name }} [skip ci]"
-          git push origin HEAD:main
-        fi
+        VERSION="${{ github.ref_name || github.event.inputs.version }}"
+        npm version $VERSION --no-git-tag-version --allow-same-version
 
     - name: Install dependencies
       run: npm ci
@@ -100,14 +93,9 @@ jobs:
     - name: Check npm publish requirements
       run: |
         echo "🔍 Checking npm publish requirements..."
-        # Check if version in package.json matches the tag
-        TAG_VERSION=${GITHUB_REF#refs/tags/v}
+        # Version is already updated by npm version command above
         PACKAGE_VERSION=$(node -p "require('./package.json').version")
-        if [ "$TAG_VERSION" != "$PACKAGE_VERSION" ]; then
-          echo "❌ Version mismatch: Tag version (v$TAG_VERSION) != Package version ($PACKAGE_VERSION)"
-          exit 1
-        fi
-        echo "✅ Version check passed: v$PACKAGE_VERSION"
+        echo "✅ Publishing version: v$PACKAGE_VERSION"
         
         # Verify npm automation token is set
         if [ -z "${{ secrets.NPM_AUTOMATION_TOKEN }}" ]; then
