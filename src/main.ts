@@ -15,9 +15,9 @@ app.setName(appName);
 function extractSessionNameFromId(sessionId: string): string {
   if (!sessionId) return 'session';
   
-  // Match pattern: -Users-${whoami}-workspace-${sessionType}-${sessionName}
-  // Extract the session name (the part after the second dash after workspace)
-  const match = sessionId.match(/-workspace-[^-]+-([^-]+)/);
+  // Match pattern: -Users-${whoami}-workspace-${sessionType}-${sessionName}  
+  // Extract the session name (everything after workspace-type-)
+  const match = sessionId.match(/-workspace-[^-]+-(.+)/);
   if (match && match[1]) {
     return match[1];
   }
