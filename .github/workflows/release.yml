@@ -8,10 +8,16 @@ on:
 jobs:
   release:
     runs-on: macos-latest
+    permissions:
+      contents: write  # For updating release and committing to main
+      packages: write  # For npm publish
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0
 
     - name: Setup Node.js
       uses: actions/setup-node@v4
@@ -20,8 +26,23 @@ jobs:
         cache: 'npm'
         registry-url: 'https://registry.npmjs.org'
 
-    - name: Update package.json version
-      run: npm version ${{ github.ref_name }} --no-git-tag-version --allow-same-version
+    - name: Update package.json version and commit to main
+      run: |
+        # Configure git
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        
+        # Update version
+        npm version ${{ github.ref_name }} --no-git-tag-version --allow-same-version
+        
+        # Commit and push to main if there are changes
+        if git diff --quiet; then
+          echo "No version change needed"
+        else
+          git add package.json package-lock.json
+          git commit -m "chore: bump version to ${{ github.ref_name }} [skip ci]"
+          git push origin HEAD:main
+        fi
 
     - name: Install dependencies
       run: npm ci
@@ -104,10 +125,10 @@ jobs:
       env:
         NODE_AUTH_TOKEN: ${{ secrets.NPM_AUTOMATION_TOKEN }}
 
-    - name: Create GitHub Release
+    - name: Upload Release Assets
       uses: softprops/action-gh-release@v1
       with:
         files: release/*
-        generate_release_notes: true
+        fail_on_unmatched_files: false
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
