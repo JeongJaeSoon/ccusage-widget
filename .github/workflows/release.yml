@@ -88,22 +88,21 @@ jobs:
         fi
         echo "✅ Version check passed: v$PACKAGE_VERSION"
         
-        # Verify npm token is set
-        if [ -z "${{ secrets.NPM_TOKEN }}" ]; then
-          echo "⚠️  Warning: NPM_TOKEN secret is not set"
+        # Verify npm automation token is set
+        if [ -z "${{ secrets.NPM_AUTOMATION_TOKEN }}" ]; then
+          echo "⚠️  Warning: NPM_AUTOMATION_TOKEN secret is not set (required for 2FA-enabled accounts)"
         fi
         echo "✅ All npm publish requirements met"
 
     - name: Configure npm authentication
       run: |
-        echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
+        echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_AUTOMATION_TOKEN }}" > ~/.npmrc
         echo "registry=https://registry.npmjs.org/" >> ~/.npmrc
-        echo "always-auth=true" >> ~/.npmrc
 
     - name: Publish to npm
       run: npm publish
       env:
-        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_AUTOMATION_TOKEN }}
 
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v1
