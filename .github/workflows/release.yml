@@ -4,10 +4,6 @@ on:
   push:
     tags:
       - 'v*'
-  pull_request:
-    types: [opened, synchronize]
-    paths:
-      - '.github/workflows/release.yml'
   workflow_dispatch:
     inputs:
       version:
@@ -38,12 +34,7 @@ jobs:
 
     - name: Update package.json version
       run: |
-        if [ "${{ github.event_name }}" = "pull_request" ]; then
-          VERSION="v1.3.99-test"
-          echo "🧪 PR Test Mode: Using test version $VERSION"
-        else
-          VERSION="${{ github.ref_name || github.event.inputs.version }}"
-        fi
+        VERSION="${{ github.ref_name || github.event.inputs.version }}"
         npm version $VERSION --no-git-tag-version --allow-same-version
 
     - name: Install dependencies
@@ -118,29 +109,14 @@ jobs:
         echo "registry=https://registry.npmjs.org/" >> ~/.npmrc
 
     - name: Publish to npm
-      if: github.event_name != 'pull_request'
       run: npm publish
       env:
         NODE_AUTH_TOKEN: ${{ secrets.NPM_AUTOMATION_TOKEN }}
 
     - name: Upload Release Assets
-      if: github.event_name != 'pull_request'
       uses: softprops/action-gh-release@v1
       with:
         files: release/*
         fail_on_unmatched_files: false
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    
-    - name: PR Test Summary
-      if: github.event_name == 'pull_request'
-      run: |
-        echo "✅ PR Test Mode: All checks passed!"
-        echo "📋 Test Summary:"
-        echo "  - Build: ✅"
-        echo "  - Tests: ✅"
-        echo "  - Lint: ✅"
-        echo "  - Type Check: ✅"
-        echo "  - Package: ✅"
-        echo ""
-        echo "⚠️  Note: npm publish and release upload were skipped in PR test mode"
